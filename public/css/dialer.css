@@ -4,7 +4,7 @@ body {
   background-color: white;
 }
 div#softphone {
-  width: 220px;
+  width: 182px;
   padding: 7px;
 }
 .button-style {
@@ -32,6 +32,7 @@ div#agent-status-controls button:hover {
 div#agent-status {
   text-align: center;
   padding: 20px 0 20px 0;
+  margin: 0 0 6px 0;
   -webkit-border-radius: 7px;
   -moz-border-radius: 7px;
   -ms-border-radius: 7px;
@@ -55,15 +56,15 @@ div#agent-status.on-call {
 div#agent-status p {
   color: #FFF;
   font-weight: 300;
-  font-size: 1.0em;
+  font-size: 0.8em;
 }
 div.divider {
   border-bottom: 1px dotted #ccc;
   margin: 8px 0 8px 0;
 }
-div#number-entry input {
+div#number-entry input, div#agent-number-entry input {
   border: 1px solid #ccc;
-  width: 208px;
+  width: 171px;
   padding: 5px;
   margin: 0px;
 }
@@ -76,10 +77,10 @@ div#dialer {
   color: #3B3B3B;
   cursor: pointer;
   display: inline-block;
-  height: 20px;
-  padding-top: 6px;
-  margin-bottom: 4px;
-  width: 68px;
+  height: 17px;
+  padding-top: 5px;
+  margin-bottom: 5px;
+  width: 54px;
   background-image: linear-gradient(bottom, #f0f0f0 20%, #f5f5f5 72%);
   background-image: -o-linear-gradient(bottom, #f0f0f0 20%, #f5f5f5 72%);
   background-image: -moz-linear-gradient(bottom, #f0f0f0 20%, #f5f5f5 72%);
@@ -105,7 +106,7 @@ div#action-buttons {
 }
 div#action-buttons button {
   height: 100%;
-  width: 69px;
+  width: 180px;
   margin-left: 1px;
   display: inline-block;
   background-color: #fff;
