@@ -276,7 +276,7 @@ $(function() {
 
   // Set server-side status to ready / not-ready
   SP.functions.notReady = function() {
-    $.get("/track", { "from":SP.username, "status":"NotReady", "agent_number":agent_number }, function(data) {
+    $.get("/track", { "from":SP.username, "status":"NotReady", "agent_number": SP.agent_number }, function(data) {
       SP.functions.updateStatus();
     });
   }
