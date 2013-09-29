@@ -29,6 +29,9 @@ $(function() {
       }
 
       SP.functions.startWebSocket();
+      sforce.interaction.cti.enableClickToDial();
+      sforce.interaction.cti.onClickToDial(startCall);
+
     };
 
     //how  can we tell if sforce works before calling this?
@@ -147,7 +150,7 @@ $(function() {
   SP.functions.getSFDCUserInfo();
 
 
-  sforce.interaction.cti.onClickToDial(startCall);
+  //sforce.interaction.cti.onClickToDial(startCall);
 
 
   // No longer need twilio stuff?
