@@ -307,17 +307,17 @@ $(function() {
       console.log("getting status info = " + result);
 
       if (result.status == "NotReady") {
-           SP.functions.updateAgentStatusText("notReady", "Not Ready")
+           SP.functions.updateAgentStatusText("notReady", "Not Ready");
        }
 
       if (result.status == "Ready") {
-           SP.functions.updateAgentStatusText("ready", "Ready")
+           SP.functions.updateAgentStatusText("ready", "Ready");
        }
 
       //show what the server thinks your number is, as that is what counts
       if (result.phone) {
         $("#agent-number-entry input").val(result.phone);
-      } else
+      } else {
         $("#agent-number-entry input").val(SP.agent_number);
       }
     });
