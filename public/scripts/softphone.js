@@ -311,8 +311,6 @@ $(function() {
 
       if (result.status == "Ready") {
            SP.functions.updateAgentStatusText("ready", "Ready");
-           sforce.interaction.cti.enableClickToDial();
-
        }
 
       //show what the server thinks your number is, as that is what counts
@@ -321,6 +319,12 @@ $(function() {
       } else {
         $("#agent-number-entry input").val(SP.agent_number);
       }
+
+      if (SP.agent_number) {
+        //only enable click2dial if phone number has been set
+        sforce.interaction.cti.enableClickToDial();
+      }
+
     });
 
   }
