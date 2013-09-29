@@ -112,7 +112,7 @@ Thread.new do
         #nobody to take the call... should redirect to a queue here
         puts "No ready agents.. keeq waiting...."
       else
-        puts "Found best client! #{bestclient}"
+        puts "Found availible agent =  #{bestclient[0]}"
         first.dequeue(dqueueurl)
         #get clients phone number, if any
       end
@@ -174,7 +174,8 @@ get '/websocket' do
       user = userlist[clientname]
 
       if user
-        user[:status] = " "
+        #removed, don't set user status in websocket connection
+        #user[:status] = " "  
         user[:activity] = Time.now.to_f
         user[:count] ||= 0;  user[:count] += 1
         user[:socket] = ws
@@ -273,8 +274,8 @@ post '/voice' do
     #nobody to take the call... should redirect to a queue here
     dialqueue = qname
   else
-    puts "Found best client! #{bestclient[0]}"
-    client_name = bestclient[0]
+    puts "Found best agent! #{bestclient[0]}"
+    agent_name = bestclient[0]
     #get clients phone number, if any
   end
 
@@ -291,10 +292,11 @@ post '/voice' do
     else      #send to best agent
       r.Dial(:timeout=>"10", :action=>"/handleDialCallStatus", :callerId => callerid) do |d|
 
-        calls[sid][:agent] = client_name
+        calls[sid][:agent] = agent_name
         calls[sid][:status] = "Ringing"
+        userlist[agent_name][:status] = "Inbound"
 
-        puts "dialing client #{client_name}"
+        puts "dialing client #{agent_name}"
 
         # Send websocket message to client to do screen pop...
 
@@ -323,31 +325,37 @@ end
 
 post '/handleDialCallStatus' do
 
+  #where calls go to die.  Actually after dying. The ghost of a call if youw
   puts "HANDLEDIALCALLSTATUS params = #{params}"
-  #todo - log this info?
-  #rules - if you dialed a client, and the response is "no-answer", set client to not ready.
-    #
+
   sid = params[:CallSid]
+  puts calls # variable for tracking calls... {"CAcb90adcb68b6e51b96d8216d105ff645"=>{:client=>"defaultclient", :status=>"Ringing", "status"=>"Missed"}}
+  
+  agent = calls[sid][:agent]  #get the agent for this call
 
   response = Twilio::TwiML::Response.new do |r|
 
-    #consider logging all of this?
-    if params['DialCallStatus'] == "no-answer"
-      #if a call got here when ringing a client, they didn't answer.  set values
-      calls[sid][:status] = "Missed"
-      agent = calls[sid][:agent]
+      #consider logging all of this?
+      if params['DialCallStatus'] != "completed"
 
-      puts calls # {"CAcb90adcb68b6e51b96d8216d105ff645"=>{:client=>"defaultclient", :status=>"Ringing", "status"=>"Missed"}}
-      # now, since this client missed a call, set him to paused, and send a websocket message?
-      userlist[agent][:status] = "Missed"
-      puts "user list = #{userlist}"
+        calls[sid][:status] = "Missed"
+        userlist[agent][:status] = "Missed"
+        #the agent did not accept the call, so send it back to the next agent
+        r.Redirect('/voice')
+      else
+        #they completed a call, so go back to ready. this may need to be changed to go to not ready or After Call Work mode. meantime, agents finish a call and are immediatly ready.
+        userlist[agent][:status] = "Ready"
+      end
 
-      r.Redirect('/voice')
-    else
-      r.Hangup
-    end
+      #send a message to this badboy.
+      socket = userlist[agent][:socket]
+      msg = {:do=>"paint", :status=>userlist[agent][:status]}.to_json
+
+      puts "sending #{msg}"
+      socket.send(msg)
+  
   end
-  puts "response.text  = #{response.text}"
+  puts "handlecall status response.text  = #{response.text}"
   response.text
 end
 
@@ -419,6 +427,7 @@ get '/status' do
 
   if userlist.has_key?(from)
     status = userlist[from][:status]
+    status = {:status=>userlist[from][:status], :phone=>userlist[from][:phone]}.to_json
     p "status = #{status}"
   else
     status ="no status"

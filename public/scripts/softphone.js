@@ -213,7 +213,9 @@ $(function() {
 
     var from = options["From"];
 
-    SP.functions.updateAgentStatusText("ready", ("Call from: " + from))
+
+
+    SP.functions.updateAgentStatusText("onCall", ("Call from: " + from))
 
     var inboundnum = cleanInboundTwilioNumber(from);
     var result = "";
@@ -229,7 +231,7 @@ $(function() {
     // ** Agent Presence Stuff ** //
     console.log(".startWebSocket...");
 
-    var wsaddress = 'wss://' + window.location.host  + "/websocket?clientname=" + SP.username
+    var wsaddress = 'ws://' + window.location.host  + "/websocket?clientname=" + SP.username
     // Temp > hit localhost
     //     var wsaddress = 'ws://' + window.location.host  + "/websocket?clientname=" + SP.username
 
@@ -283,11 +285,13 @@ $(function() {
   SP.functions.updateStatus = function() {
     $.get("/status", { "from":SP.username}, function(data) {
 
-      if (data == "NotReady") {
+      var result = JSON.parse(data);
+
+      if (result.status == "NotReady") {
            SP.functions.updateAgentStatusText("notReady", "Not Ready")
        }
 
-      if (data == "Ready") {
+      if (result.status == "Ready") {
            SP.functions.updateAgentStatusText("ready", "Ready")
        }
     });
@@ -296,7 +300,20 @@ $(function() {
 
 
   SP.functions.paint = function(result) {
-    $("#agent-number-entry input").val(result['agent_number_entry']);
+    
+    if (result.agent_number_entry) {
+      $("#agent-number-entry input").val(result['agent_number_entry']);
+    }
+
+    //not all websockets have a status message
+    if (result.status) {
+      if (result.status == "Ready") {
+          SP.functions.updateAgentStatusText("ready", "Ready");
+      } else {
+          SP.functions.updateAgentStatusText("notReady", result.status);
+      }
+    }
+
   }
 
   /******** GENERAL FUNCTIONS for SFDC  ***********************/
