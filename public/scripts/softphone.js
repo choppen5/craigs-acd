@@ -322,7 +322,7 @@ $(function() {
       if (SP.agent_number) {
         //only enable click2dial if phone number has been set
         sforce.interaction.cti.enableClickToDial();
-        force.interaction.cti.onClickToDial(startCall);
+        sforce.interaction.cti.onClickToDial(startCall);
       }
 
     });
