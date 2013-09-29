@@ -543,7 +543,8 @@ get '/clicktodial' do
 
   @call = @client.account.calls.create(:from=>caller_id, :to=>agentnumber, :url => URI.escape("#{url}/connectagenttocustomer?customernumber=#{customernumber}&agentnumber=#{agentnumber}"))
   #todo: add this caller sid and agent status.. ie he is on a click2dial
-  puts "Sid for click2dial = #{@call.sid}"
+  sid = @call.sid
+  puts "Sid for click2dial = #{sid}"
   userlist[agentname][:status] = "Outbound"
   calls[sid][:agent] = agent_name
   calls[sid][:status] = "Outbound"
