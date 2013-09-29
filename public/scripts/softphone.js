@@ -8,6 +8,7 @@ $(function() {
   SP.state = {};
   SP.state.callNumber = null;
   SP.username = "default_client";
+  SP.agent_number = "";
 
 
   SP.functions = {};
@@ -117,17 +118,12 @@ $(function() {
     var customernumber = $("#number-entry > input").val();
     var agent_number = $("#agent-number-entry input").val();
 
-
     var params = {"customernumber": customernumber, "agentnumber": agent_number, "agent": SP.username};
-           //call a ruby $.get to ruby
-           //  -- results will come bak to 
-           //  --> ruby will: rest call to agent. on connection, call customer.
 
     $.get("/clicktodial", params, function(data) {
       SP.functions.updateAgentStatusText("onCall", "Calling: " + customernumber);
     });
 
-      //     Twilio.Device.connect(params);
   });
 
   // Wire the ready / not ready buttons up to the server-side status change functions
@@ -285,6 +281,8 @@ $(function() {
     if(agent_number == "") {
       alert("Enter your number in the 'your number' field and click 'Ready'.");
       return false;
+    } else {
+      SP.agent_number = agent_number;
     }
 
     $.get("/track", { "agent_number":agent_number, "from":SP.username, "status":"Ready" }, function(data) {
@@ -343,13 +341,15 @@ $(function() {
   function startCall(response) {
     var result = JSON.parse(response.result);
     var cleanednumber = cleanFormatting(result.number);
-    var agent_number = $("#agent-number-entry input").val();
 
-    SP.functions.updateAgentStatusText("ready", ("Calling: " + cleanednumber))
+    SP.functions.updateAgentStatusText("onCall", ("Calling: " + cleanednumber))
 
-    $.get("/clicktodial", {"to":cleanednumber, "from":agent_number}, function (token) {
-      Twilio.Device.setup(token, {debug: true});
+    var params = {"customernumber": cleanednumber, "agentnumber": SP.agent_number, "agent": SP.username};
+
+    $.get("/clicktodial", params, function(data) {
+      SP.functions.updateAgentStatusText("onCall", "Calling: " + customernumber);
     });
+
   }
 
   function saveLog(response) {
