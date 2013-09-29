@@ -370,7 +370,7 @@ $(function() {
     var params = {"customernumber": cleanednumber, "agentnumber": SP.agent_number, "agent": SP.username};
 
     $.get("/clicktodial", params, function(data) {
-      SP.functions.updateAgentStatusText("onCall", "Calling: " + customernumber);
+      SP.functions.updateAgentStatusText("onCall", "Calling: " + cleanednumber);
     });
 
   }
