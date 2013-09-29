@@ -546,7 +546,7 @@ get '/clicktodial' do
   sid = @call.sid
   puts "Sid for click2dial = #{sid}"
   userlist[agentname][:status] = "Outbound"
-  calls[sid][:agent] = agent_name
+  calls[sid][:agent] = agentname
   calls[sid][:status] = "Outbound"
 
   #websocket message for this agent here...
