@@ -316,6 +316,8 @@ $(function() {
       //show what the server thinks your number is, as that is what counts
       if (result.phone) {
         $("#agent-number-entry input").val(result.phone);
+        SP.agent_number = result.phone;
+
       } else {
         $("#agent-number-entry input").val(SP.agent_number);
       }
