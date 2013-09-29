@@ -218,8 +218,10 @@ get '/websocket' do
 
         # if not more clients are registered, set to not ready
         if user[:count] < 1
-          user[:status] = "LOGGEDOUT"
-          user[:activity] = Time.now
+          #don't do this... if a user loggs out in ready mode, we will still send them calls.  decide on rules around this....
+
+          #user[:status] = "LOGGEDOUT"
+          #user[:activity] = Time.now
         end
 
       #remove client count
