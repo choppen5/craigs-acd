@@ -276,7 +276,7 @@ $(function() {
 
   // Set server-side status to ready / not-ready
   SP.functions.notReady = function() {
-    $.get("/track", { "from":SP.username, "status":"NotReady" }, function(data) {
+    $.get("/track", { "from":SP.username, "status":"NotReady", agent_number":agent_number" }, function(data) {
       SP.functions.updateStatus();
     });
   }
@@ -314,8 +314,11 @@ $(function() {
            SP.functions.updateAgentStatusText("ready", "Ready")
        }
 
+      //show what the server thinks your number is, as that is what counts
       if (result.phone) {
         $("#agent-number-entry input").val(result.phone);
+      } else
+        $("#agent-number-entry input").val(SP.agent_number);
       }
     });
 
