@@ -528,18 +528,38 @@ post '/connect-mobile-call-to-agent' do
 end
 
 get '/clicktodial' do
-  params[:to]
+  agentname = params[:agent]
+  agentnumber = params[:agentnumber]
+  customernumber = params[:customernumber]
+
 
   @client = Twilio::REST::Client.new(account_sid, auth_token)
 
+  #first, call agent
   url = request.base_url
-  @client.account.calls.create(:from=>params[:to], :to=>params[:from], :url => URI.escape("#{url}/clicktodialcallback"))
+  @call = @client.account.calls.create(:from=>caller_id, :to=>agentnumber, :url => URI.escape("#{url}/connectagenttocustomer?customernumber=#{customernumber}&agentnumber=#{agentnumber}"))
+  #todo: add this caller sid and agent status.. ie he is on a click2dial
+  puts "Sid for click2dial = #{@call.sid}"
+
 end
 
-get '/clicktodialcallback' do
-  r.Dial(:timeout=>"10", :action=>"/handleDialCallStatus", :callerId => callerid) do |d|
-    d.Number bestclient[1][:number]
+post '/connectagenttocustomer' do
+
+  puts "connecting agent to customer..."
+  agentnumber = params[:agentnumber]
+  customernumber = params[:customernumber]
+
+
+  response = Twilio::TwiML::Response.new do |r|
+    params[:customersnumber]
+    #this will happen after agent gets the call
+    r.Dial(:timeout=>"10", :action=>"/handleDialCallStatus", :callerId => agentnumber) do |d|
+      d.Number customernumber
+    end
+
+    return r.text
   end
+  
 
 end
 

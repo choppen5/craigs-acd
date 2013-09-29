@@ -113,8 +113,20 @@ $(function() {
 
   // Call button will make an outbound call (click to dial) to the number entered
   $("#action-buttons > button.call").click( function( ) {
-    alert("TODO: Call new /clicktodial action");
-      //     params = {"PhoneNumber": $("#number-entry > input").val()};
+    //alert("TODO: Call new /clicktodial action");
+    var customernumber = $("#number-entry > input").val();
+    var agent_number = $("#agent-number-entry input").val();
+
+
+    var params = {"customernumber": customernumber, "agentnumber": agent_number, "agent": SP.username};
+           //call a ruby $.get to ruby
+           //  -- results will come bak to 
+           //  --> ruby will: rest call to agent. on connection, call customer.
+
+    $.get("/clicktodial", params, function(data) {
+      SP.functions.updateAgentStatus("onCall", "Calling: " + customernumber);
+    });
+
       //     Twilio.Device.connect(params);
   });
 
