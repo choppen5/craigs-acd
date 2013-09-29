@@ -527,7 +527,7 @@ post '/connect-mobile-call-to-agent' do
 
 end
 
-post '/clicktodial' do
+get '/clicktodial' do
   agentname = params[:agent]
   agentnumber = params[:agentnumber]
   customernumber = params[:customernumber]
@@ -537,6 +537,10 @@ post '/clicktodial' do
 
   #first, call agent
   url = request.base_url
+  unless request.base_url.include? 'localhost'
+     url = url.sub('http', 'https')
+  end
+
   @call = @client.account.calls.create(:from=>caller_id, :to=>agentnumber, :url => URI.escape("#{url}/connectagenttocustomer?customernumber=#{customernumber}&agentnumber=#{agentnumber}"))
   #todo: add this caller sid and agent status.. ie he is on a click2dial
   puts "Sid for click2dial = #{@call.sid}"
