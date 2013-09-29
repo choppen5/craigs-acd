@@ -29,8 +29,7 @@ $(function() {
       }
 
       SP.functions.startWebSocket();
-      sforce.interaction.cti.enableClickToDial();
-      sforce.interaction.cti.onClickToDial(startCall);
+
 
     };
 
@@ -147,9 +146,10 @@ $(function() {
   // ** Twilio Client Stuff ** //
 
   // get username, generate token, set up device with token. callbacks bitch.
+  sforce.interaction.cti.disableClickToDial(); //start off disabled 
+
   SP.functions.getSFDCUserInfo();
-
-
+  
   //sforce.interaction.cti.onClickToDial(startCall);
 
 
@@ -290,6 +290,8 @@ $(function() {
 
     $.get("/track", { "agent_number":agent_number, "from":SP.username, "status":"Ready" }, function(data) {
       SP.functions.updateStatus();
+      sforce.interaction.cti.enableClickToDial();
+      sforce.interaction.cti.onClickToDial(startCall);
     });
   }
 
