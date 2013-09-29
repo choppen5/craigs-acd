@@ -28,7 +28,10 @@ $(function() {
         console.log("error = " + response.error);
       }
 
+      //get existing info for this guy
+
       SP.functions.startWebSocket();
+      SP.functions.updateStatus(); //get status if he's already logged in
 
 
     };
@@ -301,6 +304,7 @@ $(function() {
     $.get("/status", { "from":SP.username}, function(data) {
 
       var result = JSON.parse(data);
+      console.log("getting status info = " + result);
 
       if (result.status == "NotReady") {
            SP.functions.updateAgentStatusText("notReady", "Not Ready")
@@ -309,6 +313,10 @@ $(function() {
       if (result.status == "Ready") {
            SP.functions.updateAgentStatusText("ready", "Ready")
        }
+
+      if (result.phone) {
+        $("#agent-number-entry input").val(result.phone);
+      }
     });
 
   }
