@@ -545,7 +545,9 @@ get '/clicktodial' do
   #todo: add this caller sid and agent status.. ie he is on a click2dial
   sid = @call.sid
   puts "Sid for click2dial = #{sid}"
-  userlist[agentname][:status] = "Outbound"
+  userlist[agentname][:status] = "Outbound"  
+
+  calls[sid] = {} #stupid ruby makes me initialize this
   calls[sid][:agent] = agentname
   calls[sid][:status] = "Outbound"
 
