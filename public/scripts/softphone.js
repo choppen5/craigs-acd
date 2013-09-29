@@ -243,7 +243,7 @@ $(function() {
     // ** Agent Presence Stuff ** //
     console.log(".startWebSocket...");
 
-    var wsaddress = 'ws://' + window.location.host  + "/websocket?clientname=" + SP.username
+    var wsaddress = 'wss://' + window.location.host  + "/websocket?clientname=" + SP.username
     // Temp > hit localhost
     //     var wsaddress = 'ws://' + window.location.host  + "/websocket?clientname=" + SP.username
 
