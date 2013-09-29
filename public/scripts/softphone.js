@@ -293,7 +293,6 @@ $(function() {
 
     $.get("/track", { "agent_number":agent_number, "from":SP.username, "status":"Ready" }, function(data) {
       SP.functions.updateStatus();
-      sforce.interaction.cti.enableClickToDial();
       sforce.interaction.cti.onClickToDial(startCall);
     });
   }
@@ -312,6 +311,8 @@ $(function() {
 
       if (result.status == "Ready") {
            SP.functions.updateAgentStatusText("ready", "Ready");
+           sforce.interaction.cti.enableClickToDial();
+
        }
 
       //show what the server thinks your number is, as that is what counts
