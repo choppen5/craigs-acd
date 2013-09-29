@@ -293,7 +293,6 @@ $(function() {
 
     $.get("/track", { "agent_number":agent_number, "from":SP.username, "status":"Ready" }, function(data) {
       SP.functions.updateStatus();
-      sforce.interaction.cti.onClickToDial(startCall);
     });
   }
 
@@ -316,7 +315,6 @@ $(function() {
       if (result.phone) {
         $("#agent-number-entry input").val(result.phone);
         SP.agent_number = result.phone;
-
       } else {
         $("#agent-number-entry input").val(SP.agent_number);
       }
@@ -324,6 +322,7 @@ $(function() {
       if (SP.agent_number) {
         //only enable click2dial if phone number has been set
         sforce.interaction.cti.enableClickToDial();
+        force.interaction.cti.onClickToDial(startCall);
       }
 
     });
