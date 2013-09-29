@@ -124,7 +124,7 @@ $(function() {
            //  --> ruby will: rest call to agent. on connection, call customer.
 
     $.get("/clicktodial", params, function(data) {
-      SP.functions.updateAgentStatus("onCall", "Calling: " + customernumber);
+      SP.functions.updateAgentStatusText("onCall", "Calling: " + customernumber);
     });
 
       //     Twilio.Device.connect(params);
