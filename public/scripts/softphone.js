@@ -301,8 +301,7 @@ $(function() {
   // Check the status on the server and update the agent status dialog accordingly
   SP.functions.updateStatus = function() {
     $.get("/status", { "from":SP.username}, function(data) {
-
-      var result = JSON.parse(data);
+      var result = JSON.parse(data); 
       console.log("getting status info = " + result);
 
       if (result.status == "NotReady") {
