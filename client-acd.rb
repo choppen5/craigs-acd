@@ -74,6 +74,15 @@ calls = {}   # Tracked calls, in memory
 
 $sum = 0
 
+# Has utility methods for now.  Eventually make this be the sinatra class.
+class ClientAcd
+  def self.userlist_sorted userlist
+
+    # TODO
+
+  end
+end
+
 #Starting ACD processing thread
 #todo - add exception handling for threads
 Thread.new do
@@ -175,7 +184,7 @@ get '/websocket' do
 
       if user
         #removed, don't set user status in websocket connection
-        #user[:status] = " "  
+        #user[:status] = " "
         user[:activity] = Time.now.to_f
         user[:count] ||= 0;  user[:count] += 1
         user[:socket] = ws
@@ -269,7 +278,6 @@ post '/voice' do
     calls[sid][:message] = message
   end
 
-
   bestclient = getlongestidle(userlist)
 
   if bestclient == "NoReadyAgents"
@@ -297,6 +305,7 @@ post '/voice' do
         calls[sid][:agent] = agent_name
         calls[sid][:status] = "Ringing"
         userlist[agent_name][:status] = "Inbound"
+        userlist[agent_name][:inbound_number] = params[:From]
 
         puts "dialing client #{agent_name}"
 
@@ -332,7 +341,7 @@ post '/handleDialCallStatus' do
 
   sid = params[:CallSid]
   puts calls # variable for tracking calls... {"CAcb90adcb68b6e51b96d8216d105ff645"=>{:client=>"defaultclient", :status=>"Ringing", "status"=>"Missed"}}
-  
+
   agent = calls[sid][:agent]  #get the agent for this call
 
   response = Twilio::TwiML::Response.new do |r|
@@ -355,39 +364,11 @@ post '/handleDialCallStatus' do
 
       puts "sending #{msg}"
       socket.send(msg)
-  
+
   end
   puts "handlecall status response.text  = #{response.text}"
   response.text
 end
-
-post '/dial' do
-  number = params[:PhoneNumber]
-  client_name = params[:client]
-  if client_name.nil?
-      client_name = default_client
-  end
-  response = Twilio::TwiML::Response.new do |r|
-      # outboudn dialing (from client) must have a :callerId
-
-      r.Dial :callerId => caller_id do |d|
-          # Test to see if the PhoneNumber is a number, or a Client ID. In
-          # this case, we detect a Client ID by the presence of non-numbers
-          # in the PhoneNumber parameter.
-          puts "for callerid: #{caller_id}"
-          if /^[\d\+\-\(\) ]+$/.match(number)
-              d.Number(CGI::escapeHTML number)
-              puts "matched number!"
-              else
-              d.Client client_name
-              puts "matched cliennt"
-          end
-      end
-  end
-  puts response.text
-  response.text
-end
-
 
 ### ACD stuff - for tracking agent state
 get '/track' do
@@ -428,8 +409,12 @@ get '/status' do
   #grab the first element in the status array for this user ie, [\"Ready\", 1376194403.9692101]"
 
   if userlist.has_key?(from)
-    status = userlist[from][:status]
-    status = {:status=>userlist[from][:status], :phone=>userlist[from][:phone]}.to_json
+    user = userlist[from]
+    status = {
+      :status=>user[:status],
+      :phone=>user[:phone],
+      :inbound_number=>user[:inbound_number]
+    }.to_json
     p "status = #{status}"
   else
     status ="no status"
@@ -547,7 +532,7 @@ get '/clicktodial' do
   #todo: add this caller sid and agent status.. ie he is on a click2dial
   sid = @call.sid
   puts "Sid for click2dial = #{sid}"
-  userlist[agentname][:status] = "Outbound"  
+  userlist[agentname][:status] = "Outbound"
 
   calls[sid] = {} #stupid ruby makes me initialize this
   calls[sid][:agent] = agentname
@@ -560,6 +545,7 @@ end
 post '/connectagenttocustomer' do
 
   puts "connecting agent to customer..."
+
   agentnumber = params[:agentnumber]
   customernumber = params[:customernumber]
 
@@ -567,13 +553,13 @@ post '/connectagenttocustomer' do
   response = Twilio::TwiML::Response.new do |r|
     params[:customersnumber]
     #this will happen after agent gets the call
-    r.Dial(:timeout=>"10", :action=>"/handleDialCallStatus", :callerId => agentnumber) do |d|
+    r.Dial(:timeout=>"10", :action=>"/handleDialCallStatus", :callerId=>settings.caller_id) do |d|
       d.Number customernumber
     end
 
     return r.text
   end
-  
+
 
 end
 

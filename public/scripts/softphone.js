@@ -108,19 +108,24 @@ $(function() {
 
   SP.functions.updateAgentStatusText = function(statusCategory, statusText) {
 
+    if (statusCategory == "missed") {
+      $("#agent-status").removeClass();
+      $("#agent-status").addClass("not-ready");
+    }
+
     if (statusCategory == "ready") {
-         $("#agent-status").removeClass();
-         $("#agent-status").addClass("ready");
-     }
+      $("#agent-status").removeClass();
+      $("#agent-status").addClass("ready");
+    }
 
     if (statusCategory == "notReady") {
-         $("#agent-status").removeClass();
-         $("#agent-status").addClass("not-ready");
+      $("#agent-status").removeClass();
+      $("#agent-status").addClass("not-ready");
     }
 
     if (statusCategory == "onCall") {
-        $("#agent-status").removeClass();
-        $("#agent-status").addClass("on-call");
+      $("#agent-status").removeClass();
+      $("#agent-status").addClass("on-call");
     }
 
     $("#agent-status > p").text(statusText);
@@ -312,21 +317,25 @@ $(function() {
 
   // Check the status on the server and update the agent status dialog accordingly
   SP.functions.updateStatus = function() {
-    $.get("/status", { "from":SP.username}, function(data) {
-      var result = JSON.parse(data); 
+    $.getJSON("/status", { "from":SP.username}, function(result) {
       console.log("getting status info = " + result);
 
       if (result.status == "NotReady") {
-           SP.functions.updateAgentStatusText("notReady", "Not Ready");
-       }
+        SP.functions.updateAgentStatusText("notReady", "Not Ready");
+      }
 
       if (result.status == "Ready") {
-           SP.functions.updateAgentStatusText("ready", "Ready");
-       }
+        SP.functions.updateAgentStatusText("ready", "Ready");
+      }
 
-      if (result.status == "Inbound" || result.status == "OUtbuond") {
-           SP.functions.updateAgentStatusText("onCall", result.status);
-      } 
+      if (result.status == "Inbound") {
+        var from = result.inbound_number;
+        SP.functions.updateAgentStatusText("onCall", "Call from: " + from);
+      }
+
+      if (result.status == "Missed") {
+        SP.functions.updateAgentStatusText("missed", "Missed");
+      }
 
       //show what the server thinks your number is, as that is what counts
       if (result.phone) {
@@ -348,7 +357,7 @@ $(function() {
 
 
   SP.functions.paint = function(result) {
-    
+
     if (result.agent_number_entry) {
       $("#agent-number-entry input").val(result['agent_number_entry']);
     }
