@@ -311,6 +311,10 @@ $(function() {
            SP.functions.updateAgentStatusText("ready", "Ready");
        }
 
+      if (result.status == "Inbound" || result.status == "OUtbuond") {
+           SP.functions.updateAgentStatusText("onCall", result.status);
+      } 
+
       //show what the server thinks your number is, as that is what counts
       if (result.phone) {
         $("#agent-number-entry input").val(result.phone);
