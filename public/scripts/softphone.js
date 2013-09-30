@@ -49,6 +49,15 @@ $(function() {
   // ** UI Widgets ** //
 
   // Hook up numpad to input field
+  $("#agent-number-entry input").bind('keyup',function(e){
+    var pressed;
+    if(navigator.appName == "Netscape") pressed = e.which;
+    if(navigator.appVersion.indexOf("MSIE") != -1) pressed = event.keyCode;
+
+    if(pressed == 13) SP.functions.ready();
+  });
+
+  // Hook up numpad to input field
   $("div.number").bind('click',function(){
     $("#number-entry > input").val($("#number-entry > input").val()+$(this).attr('Value'));
   });
@@ -251,7 +260,7 @@ $(function() {
 
     var ws = new WebSocket(wsaddress);
     ws.onopen    = function()  { console.log('websocket opened'); };
-    ws.onclose   = function()  { console.log('websocket closed'); }
+    ws.onclose   = SP.functions.onWebsocketClose;
 
     // Socket message from server, so screen pop or update status...
 
@@ -268,11 +277,15 @@ $(function() {
         $("#team-status > .queues-status").text("Call Queue:  " + result.queuesize);
         $("#team-status > .agents-status").text("Ready Agents:  " + result.readyagents);
       }
-
     };
-
   }
 
+  SP.functions.onWebsocketClose = function() {
+    window.setTimeout(function(){
+      $("#agent-status").addClass('interrupted').find('p').text('disconnected');
+    }, 3000);
+    console.log('websocket closed');
+  }
 
   // Set server-side status to ready / not-ready
   SP.functions.notReady = function() {
