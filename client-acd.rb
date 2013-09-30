@@ -447,7 +447,7 @@ def getlongestidle(userlist)
   end
 
   sorted = readyusers.sort_by{|name, hash|
-    hash["activity"]
+    hash[:activity]
   }
 
   sorted.first   # Lowest time of last activity is longest idle
