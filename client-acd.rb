@@ -450,7 +450,7 @@ def getlongestidle(userlist)
     hash["activity"]
   }
 
-  sorted.last   # Lowest time of last activity is longest idle
+  sorted.first   # Lowest time of last activity is longest idle
 end
 
 
