@@ -31,7 +31,7 @@ div#agent-status-controls button:hover {
 }
 div#agent-status {
   text-align: center;
-  padding: 20px 0 20px 0;
+  height: 44px;
   margin: 0 0 6px 0;
   -webkit-border-radius: 7px;
   -moz-border-radius: 7px;
@@ -49,11 +49,16 @@ div#agent-status.not-ready {
   background-color: #FE2B2C; /*e74c3c;*/
 }
 
+div#agent-status.interrupted {
+  background-color: #f90;
+}
+
 div#agent-status.on-call {
   background-color: #3498DB;
 }
 
 div#agent-status p {
+  padding: 17px 0 0 0;
   color: #FFF;
   font-weight: 300;
   font-size: 0.8em;

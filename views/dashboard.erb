@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Swalio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Le styles -->
+    <!-- <link href="../assets/css/bootstrap.css" rel="stylesheet"> -->
+    <style type="text/css">
+      body {
+        padding-top: 60px;
+        padding-bottom: 40px;
+      }
+
+    </style>
+
+    <link href="https://netdna.bootstrapcdn.com/font-awesome/3.1.1/css/font-awesome.min.css" rel="stylesheet">
+    <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css" rel="stylesheet">
+
+
+
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="../assets/js/html5shiv.js"></script>
+    <![endif]-->
+
+  </head>
+
+  <body>
+
+    <div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+                  <a class='brand' id='brand' href='#'>Swalio</a>
+          <!-- old navbar stuff moved from here to ruby comments below -->
+        </div>
+      </div>
+    </div>
+    <style>
+      th {
+        padding: 2px 10px;
+      }
+      td {
+        padding: 2px 10px;
+      }
+    </style>
+    <div class='container'>
+      <div class='row'>
+        <div class='span12'>
+
+          <h2>
+            Agent Status
+          </h2>
+          <table style="border:solid 1x">
+            <tr>
+              <th>name</th>
+              <th>phone</th>
+              <th>status</th>
+              <th>activity</th>
+            </tr>
+
+            <% rows.each do |name, hash| %>
+              <tr>
+                <td><%= name %></td>
+                <td><%= hash[:phone] %></td>
+                <td><%= hash[:status] %></td>
+                <td><%= Time.at(hash[:activity]).strftime("%a %I:%M:%S %p") %></td>
+                <td><a href="#" onclick="return Dashboard.remove('<%= name %>')">remove</a></td>
+              </tr>
+            <% end %>
+          </table>
+        </div>
+      </div>
+
+
+
+      <div class='row' style="margin-top:35px;">
+        <div class='span12'>
+
+          <h2>
+            Whitelist
+          </h2>
+          <% whitelist.each do |number| %>
+            <div style="margin-left: 10px;">
+              <%= number %>
+            </div>
+          <% end %>
+          <% whitelist_candidates.each do |number| %>
+            <div style="margin-left: 10px;">
+              <a href="#" onclick="return Dashboard.add('<%= number %>');">add to list:</a>
+              <%= number %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+
+
+      <div class='row' style="margin-top:35px;">
+        <div class='span12'>
+
+          <h2>
+            userlist.yml
+          </h2>
+          <a href="#" onclick="return Dashboard.save()">save</a>
+          <br>
+          <a href="#" onclick="return Dashboard.restore()">restore</a>
+        </div>
+      </div>
+
+
+    </div>
+
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/scripts/dashboard.js"></script>
+
+  </body>
+</html>

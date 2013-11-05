@@ -6,10 +6,12 @@ require 'json'
 require 'sinatra'
 require 'sinatra-websocket'
 require 'pp'
+require 'yaml'
+require 'thread'
 
+sockets_semaphore, userlist_semaphore, calls_semaphore = Mutex.new, Mutex.new, Mutex.new
 
 config_file 'config_file.yml'
-
 
 set :server, 'thin'
 set :sockets, []
@@ -74,69 +76,91 @@ calls = {}   # Tracked calls, in memory
 
 $sum = 0
 
-#Starting ACD processing thread
-#todo - add exception handling for threads
-Thread.new do
-  while true do
-    sleep 1
-    $sum += 1
+# Has utility methods for now.  Eventually make this be the sinatra class.
+class ClientAcd
 
-    #print out users
-    puts "printing user list.."
-    userlist.each do |name, hash|
-      string = hash.map{|k, v| "#{k.inspect}=>#{v.is_a?(SinatraWebsocket::Connection) ? '<Socket>' : v.inspect}"}.join(", ")
-      puts "  - #{name}: #{string}"
-    end
+  @@whitelist, @@whitelist_candidates = nil, []
 
-    first = 0
-    callerinqueue = false
-    qsize = 0
-    @members = queue1.members
-    @members.list.each do |m|
-      qsize +=1
-      puts "Sid: #{m.call_sid}"
-      puts "Date Enqueue: #{m.date_enqueued}"
-      puts "Wait_Time: #{m.wait_time} "
-      puts "Position: #{m.position}"
-      if first == 0
-        first = m
-        callerinqueue = true
-      end
-    end
+  def self.whitelist_candidates
+    @@whitelist_candidates
+  end
 
-    puts "qsize = #{qsize}"
-
-    if callerinqueue #only check for route if there is a queue member
-      bestclient = getlongestidle(userlist)
-      if bestclient == "NoReadyAgents"
-        #nobody to take the call... should redirect to a queue here
-        puts "No ready agents.. keeq waiting...."
-      else
-        puts "Found availible agent =  #{bestclient[0]}"
-        first.dequeue(dqueueurl)
-        #get clients phone number, if any
-      end
-    end
-
-    # Send updated counts to each client...
-
-    readycount = userlist.select{|key, hash| hash[:status] == "Ready"}.length
-
-    settings.sockets.each{|s|
-      msg = {:queuesize => qsize, :readyagents => readycount}.to_json
-      puts "sending #{msg}"
-      s.send(msg)
-    }
-
-    # TODO: guard against thread death - maybe wrap in rescue?
-
-    #puts "average queue wait time: #{queue1.average_wait_time}"
-    #puts "queue depth = #{queue.depth}"
-    puts "run = #{$sum} #{Time.now}"
+  def self.whitelist= val
+    @@whitelist = val
+  end
+  def self.whitelist
+    @@whitelist ||= YAML::load(File.read "whitelist.yml")
+    @@whitelist
   end
 end
 
-Thread.abort_on_exception = true
+# Start loop to check Twilio etc...
+
+EM::next_tick do
+  EventMachine.run do
+    EM.add_periodic_timer(1.0) do
+
+      begin
+        $sum += 1
+
+        puts "printing user list..."
+        print(userlist.map do |name, hash|
+          string = hash.map{|k, v| "#{k.inspect}=>#{v.is_a?(SinatraWebsocket::Connection) ? '<Socket>' : v.inspect}"}.join(", ")
+          "  - #{name}: #{string}"
+        end.join("\n"))
+
+        first = 0
+        callerinqueue = false
+        qsize = 0
+        @members = queue1.members
+        @members.list.each do |m|
+          qsize +=1
+          puts "Sid: #{m.call_sid}"
+          puts "Date Enqueue: #{m.date_enqueued}"
+          puts "Wait_Time: #{m.wait_time} "
+          puts "Position: #{m.position}"
+          if first == 0
+            first = m
+            callerinqueue = true
+          end
+        end
+
+        puts "qsize = #{qsize}"
+
+        if callerinqueue #only check for route if there is a queue member
+          bestclient = getlongestidle(userlist)
+          if bestclient == "NoReadyAgents"
+            #nobody to take the call... should redirect to a queue here
+            puts "No ready agents.. keeq waiting...."
+          else
+            puts "Found availible agent =  #{bestclient[0]}"
+            first.dequeue(dqueueurl)
+            #get clients phone number, if any
+          end
+        end
+
+        # Send updated counts to each client...
+
+        readycount = userlist.select{|key, hash| hash[:status] == "Ready"}.length
+
+        settings.sockets.each{|s|
+          msg = {:queuesize => qsize, :readyagents => readycount}.to_json
+          puts "sending #{msg}"
+          s.send(msg)
+        }
+
+        # TODO: guard against thread death - maybe wrap in rescue?
+
+        #puts "average queue wait time: #{queue1.average_wait_time}"
+        #puts "queue depth = #{queue.depth}"
+        puts "run = #{$sum} #{Time.now}"
+      rescue
+        puts "error in thread loop"
+        puts $!, $@
+      end
+    end
+  end
+end
 
 get '/token' do
   client_name = params[:client]
@@ -144,10 +168,10 @@ get '/token' do
         client_name = default_client
   end
   capability = Twilio::Util::Capability.new account_sid, auth_token
-      # Create an application sid at twilio.com/user/account/apps and use it here
-      capability.allow_client_outgoing app_id
-      capability.allow_client_incoming client_name
-      token = capability.generate
+  # Create an application sid at twilio.com/user/account/apps and use it here
+  capability.allow_client_outgoing app_id
+  capability.allow_client_incoming client_name
+  token = capability.generate
   return token
 end
 
@@ -175,19 +199,21 @@ get '/websocket' do
 
       if user
         #removed, don't set user status in websocket connection
-        #user[:status] = " "  
+        #user[:status] = " "
         user[:activity] = Time.now.to_f
         user[:count] ||= 0;  user[:count] += 1
         user[:socket] = ws
         # Phone number stays the same
       else
         #user didn't exist, create them
-        userlist[clientname] = {:status=>" ", :activity=>Time.now.to_f, :count=>1, :socket=>ws}
+        userlist_semaphore.synchronize {
+          userlist[clientname] = {:status=>" ", :activity=>Time.now.to_f, :count=>1, :socket=>ws}
+        }
       end
 
-      # Store websocket here redundantly temporarily
-
-      settings.sockets << ws
+      sockets_semaphore.synchronize {
+        settings.sockets << ws
+      }
 
       number = userlist[clientname][:phone]
 
@@ -196,12 +222,6 @@ get '/websocket' do
 
       ws.send msg
 
-    end
-
-    ws.onmessage do |msg|
-      puts "got websocket message"
-      # Broadcasts out to all - not doing this, right?
-      EM.next_tick { settings.sockets.each{|s| s.send(msg) } }
     end
 
     ws.onclose do
@@ -263,12 +283,11 @@ post '/voice' do
     puts "found sid #{sid} = #{calls[sid]}"
   else
     puts "creating sid #{sid}"
-    calls[sid] = {}
+    calls_semaphore.synchronize { calls[sid] = {} }
     calls[sid][:queue_name] = queue_name
     calls[sid][:requestor_name] = requestor_name
     calls[sid][:message] = message
   end
-
 
   bestclient = getlongestidle(userlist)
 
@@ -288,21 +307,20 @@ post '/voice' do
   response = Twilio::TwiML::Response.new do |r|
 
     if dialqueue  #no agents avalible
-      r.Say("Please wait for the next availible agent ")
+      r.Say("Please wait for the next available agent ")
       r.Enqueue(dialqueue)
       #r.Redirect('/wait')
     else      #send to best agent
-      r.Dial(:timeout=>"10", :action=>"/handleDialCallStatus", :callerId => callerid) do |d|
+      r.Dial(:timeout=>"18", :action=>"/handleDialCallStatus", :callerId => callerid) do |d|
 
         calls[sid][:agent] = agent_name
         calls[sid][:status] = "Ringing"
         userlist[agent_name][:status] = "Inbound"
+        userlist[agent_name][:inbound_number] = params[:From]
 
         puts "dialing client #{agent_name}"
 
         # Send websocket message to client to do screen pop...
-
-        # Why socket going away!
 
         socket = bestclient[1][:socket]
 
@@ -332,7 +350,7 @@ post '/handleDialCallStatus' do
 
   sid = params[:CallSid]
   puts calls # variable for tracking calls... {"CAcb90adcb68b6e51b96d8216d105ff645"=>{:client=>"defaultclient", :status=>"Ringing", "status"=>"Missed"}}
-  
+
   agent = calls[sid][:agent]  #get the agent for this call
 
   response = Twilio::TwiML::Response.new do |r|
@@ -355,69 +373,60 @@ post '/handleDialCallStatus' do
 
       puts "sending #{msg}"
       socket.send(msg)
-  
+
   end
   puts "handlecall status response.text  = #{response.text}"
   response.text
 end
 
-post '/dial' do
-  number = params[:PhoneNumber]
-  client_name = params[:client]
-  if client_name.nil?
-      client_name = default_client
-  end
-  response = Twilio::TwiML::Response.new do |r|
-      # outboudn dialing (from client) must have a :callerId
-
-      r.Dial :callerId => caller_id do |d|
-          # Test to see if the PhoneNumber is a number, or a Client ID. In
-          # this case, we detect a Client ID by the presence of non-numbers
-          # in the PhoneNumber parameter.
-          puts "for callerid: #{caller_id}"
-          if /^[\d\+\-\(\) ]+$/.match(number)
-              d.Number(CGI::escapeHTML number)
-              puts "matched number!"
-              else
-              d.Client client_name
-              puts "matched cliennt"
-          end
-      end
-  end
-  puts response.text
-  response.text
-end
-
-
 ### ACD stuff - for tracking agent state
 get '/track' do
 
-  from = params[:from]
-  status = params[:status]
-  agent_number = params[:agent_number]
-  currentclientcount = 0
+  begin
 
-  #check if this guy is already registered as a client from another webpage
-  if userlist.has_key?(from)
-    currentclientcount = userlist[from][:count]
+    from = params[:from]
+    status = params[:status]
+    agent_number = params[:agent_number]
+    currentclientcount = 0
+
+    # Validate against the whitelist if going ready
+
+    if status == "Ready" && ! ClientAcd.whitelist.member?(agent_number.gsub(/\W/, ''))
+      ClientAcd.whitelist_candidates << agent_number
+      ClientAcd.whitelist_candidates.uniq!
+      return {:result=>:failure, :message=>"Adding phone number to the whitelist. Needs approval."}.to_json
+    end
+
+    #check if this guy is already registered as a client from another webpage
+    if userlist.has_key?(from)
+      currentclientcount = userlist[from][:count]
+    end
+
+    #update the userlist{} status.. this is now his status
+    puts "For client #{from} retrieved currentclientcount = #{currentclientcount} and setting status to #{status}"
+
+    # Pass socket along (must already by there)
+    user = userlist[from]
+    socket = user[:socket] if user
+
+    userlist_semaphore.synchronize {
+      userlist[from] = {:status=>status, :activity=>Time.now.to_f, :count=>currentclientcount, :socket=>socket, :phone=>agent_number}
+    }
+
+    puts(userlist.map do |name, hash|
+      string = hash.map{|k, v| "#{k.inspect}=>#{v.is_a?(SinatraWebsocket::Connection) ? '<Socket>' : v.inspect}"}.join(", ")
+      "  - #{name}: #{string}"
+    end.join("\n"))
+
+    readycount = userlist.select{|key, hash| hash[:status] == "Ready"}.length
+
+    p "Number of users #{userlist.length}, number of readyusers = #{readycount}, currentclientcount = #{currentclientcount}"
+
+  rescue
+    puts $!, $@
   end
 
-  #update the userlist{} status.. this is now his status
-  puts "For client #{from} retrieved currentclientcount = #{currentclientcount} and setting status to #{status}"
-
-  # Pass socket along (must already by there)
-  socket = userlist[from][:socket]
-
-  userlist[from] = {:status=>status, :activity=>Time.now.to_f, :count=>currentclientcount, :socket=>socket, :phone=>agent_number}
-
-  userlist.each do |name, hash|
-    string = hash.map{|k, v| "#{k.inspect}=>#{v.is_a?(SinatraWebsocket::Connection) ? '<Socket>' : v.inspect}"}.join(", ")
-    puts "::: #{name} = #{string}"
-  end
-
-  readycount = userlist.select{|key, hash| hash[:status] == "Ready"}
-
-  p "Number of users #{userlist.length}, number of readyusers = #{readycount}, currentclientcount = #{currentclientcount}"
+  {:result=>:success}.to_json
 
 end
 
@@ -428,8 +437,13 @@ get '/status' do
   #grab the first element in the status array for this user ie, [\"Ready\", 1376194403.9692101]"
 
   if userlist.has_key?(from)
-    status = userlist[from][:status]
-    status = {:status=>userlist[from][:status], :phone=>userlist[from][:phone]}.to_json
+    user = userlist[from]
+    status = {
+      :status=>user[:status],
+      :phone=>user[:phone],
+      :inbound_number=>user[:inbound_number],
+      :customer_number=>user[:customer_number],
+    }.to_json
     p "status = #{status}"
   else
     status ="no status"
@@ -447,10 +461,10 @@ def getlongestidle(userlist)
   end
 
   sorted = readyusers.sort_by{|name, hash|
-    hash["activity"]
+    hash[:activity]
   }
 
-  sorted.last   # Lowest time of last activity is longest idle
+  sorted.first   # Lowest time of last activity is longest idle
 end
 
 
@@ -547,9 +561,10 @@ get '/clicktodial' do
   #todo: add this caller sid and agent status.. ie he is on a click2dial
   sid = @call.sid
   puts "Sid for click2dial = #{sid}"
-  userlist[agentname][:status] = "Outbound"  
+  userlist[agentname][:status] = "Outbound"
+  userlist[agentname][:customer_number] = customernumber
 
-  calls[sid] = {} #stupid ruby makes me initialize this
+  calls_semaphore.synchronize { calls[sid] = {} }
   calls[sid][:agent] = agentname
   calls[sid][:status] = "Outbound"
 
@@ -560,6 +575,7 @@ end
 post '/connectagenttocustomer' do
 
   puts "connecting agent to customer..."
+
   agentnumber = params[:agentnumber]
   customernumber = params[:customernumber]
 
@@ -567,15 +583,66 @@ post '/connectagenttocustomer' do
   response = Twilio::TwiML::Response.new do |r|
     params[:customersnumber]
     #this will happen after agent gets the call
-    r.Dial(:timeout=>"10", :action=>"/handleDialCallStatus", :callerId => agentnumber) do |d|
+    r.Dial(:timeout=>"10", :action=>"/handleDialCallStatus", :callerId=>settings.caller_id) do |d|
       d.Number customernumber
     end
 
     return r.text
   end
-  
 
 end
 
+def authorized?
+  @auth ||=  Rack::Auth::Basic::Request.new(request.env)
+  @auth.provided? && @auth.basic? && @auth.credentials && @auth.credentials == ["dashboard","dash^w^yAll"]
+end
 
+def protected!
+  unless authorized?
+    response['WWW-Authenticate'] = %(Basic realm="Restricted Area")
+    throw(:halt, [401, "Oops... we need your login name & password\n"])
+  end
+end
 
+get '/dashboard/add' do
+  protected!
+
+  number = params[:number]
+  list = YAML::load(File.read("whitelist.yml"))
+  list << number.gsub(/\W/, '')
+  File.open("whitelist.yml", "w") { |f| f << list.to_yaml }
+  ClientAcd.whitelist = nil
+  ClientAcd.whitelist_candidates.delete(number)
+  {:result=>:success}.to_json
+end
+
+get '/dashboard/remove' do
+  protected!
+
+  name = params[:name]
+  userlist_semaphore.synchronize {
+    userlist.delete name
+  }
+
+  {:result=>:success}.to_json
+end
+
+get %r{/dashboard/?} do
+
+  protected!
+
+  #   userlist = {
+  #     "craigDOTmuthATcohealthop.org"=>{:status=>"Ready", :activity=>1380580967.7546318, :phone=>"5132882013", :customer_number=>"4155773411"},
+  #     "steve"=>{:status=>"Planking", :activity=>1380580967.7546318, :phone=>"5132882013", :customer_number=>"4155773411"},
+  #   }
+
+  rows =
+    userlist.sort_by{|key, val| -val[:activity]}#.map do |name, hash|
+
+  erb :dashboard, :locals => {
+    :rows=>rows,
+    :whitelist=>ClientAcd.whitelist,
+    :whitelist_candidates=>ClientAcd.whitelist_candidates,
+  }
+
+end

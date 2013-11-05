@@ -1,0 +1,7 @@
+Dashboard = {};
+Dashboard.add = function(number) {
+  $.getJSON("/dashboard/add", { "number":number}, function(result) {
+    window.location.reload();
+  });
+}
+

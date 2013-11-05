@@ -1,7 +1,7 @@
 // Page loaded
+
 $(function() {
 
-  // ** Application container ** //
   window.SP = {}
 
   // Global state
@@ -36,8 +36,8 @@ $(function() {
 
     };
 
-    //how  can we tell if sforce works before calling this?
-    sforce.interaction.runApex('UserInfo', 'getUserName', '' ,callback);
+    // how can we tell if sforce works before calling this?
+    sforce.interaction.runApex('UserInfo', 'getUserName', '', callback);
 
   }
 
@@ -47,6 +47,15 @@ $(function() {
 
 
   // ** UI Widgets ** //
+
+  // Hook up numpad to input field
+  $("#agent-number-entry input").bind('keyup',function(e){
+    var pressed;
+    if(navigator.appName == "Netscape") pressed = e.which;
+    if(navigator.appVersion.indexOf("MSIE") != -1) pressed = event.keyCode;
+
+    if(pressed == 13) SP.functions.ready();
+  });
 
   // Hook up numpad to input field
   $("div.number").bind('click',function(){
@@ -99,19 +108,24 @@ $(function() {
 
   SP.functions.updateAgentStatusText = function(statusCategory, statusText) {
 
+    if (statusCategory == "missed") {
+      $("#agent-status").removeClass();
+      $("#agent-status").addClass("not-ready");
+    }
+
     if (statusCategory == "ready") {
-         $("#agent-status").removeClass();
-         $("#agent-status").addClass("ready");
-     }
+      $("#agent-status").removeClass();
+      $("#agent-status").addClass("ready");
+    }
 
     if (statusCategory == "notReady") {
-         $("#agent-status").removeClass();
-         $("#agent-status").addClass("not-ready");
+      $("#agent-status").removeClass();
+      $("#agent-status").addClass("not-ready");
     }
 
     if (statusCategory == "onCall") {
-        $("#agent-status").removeClass();
-        $("#agent-status").addClass("on-call");
+      $("#agent-status").removeClass();
+      $("#agent-status").addClass("on-call");
     }
 
     $("#agent-status > p").text(statusText);
@@ -140,7 +154,7 @@ $(function() {
     SP.functions.notReady();
   });
 
-    $("#agent-status-controls > button.userinfo").click( function( ) {
+  $("#agent-status-controls > button.userinfo").click( function( ) {
     SP.functions.getSFDCUserInfo();
   });
 
@@ -152,7 +166,7 @@ $(function() {
   sforce.interaction.cti.disableClickToDial(); //start off disabled 
 
   SP.functions.getSFDCUserInfo();
-  
+
   //sforce.interaction.cti.onClickToDial(startCall);
 
 
@@ -251,7 +265,7 @@ $(function() {
 
     var ws = new WebSocket(wsaddress);
     ws.onopen    = function()  { console.log('websocket opened'); };
-    ws.onclose   = function()  { console.log('websocket closed'); }
+    ws.onclose   = SP.functions.onWebsocketClose;
 
     // Socket message from server, so screen pop or update status...
 
@@ -268,11 +282,15 @@ $(function() {
         $("#team-status > .queues-status").text("Call Queue:  " + result.queuesize);
         $("#team-status > .agents-status").text("Ready Agents:  " + result.readyagents);
       }
-
     };
-
   }
 
+  SP.functions.onWebsocketClose = function() {
+    window.setTimeout(function(){
+      $("#agent-status").addClass('interrupted').find('p').text('disconnected');
+    }, 3000);
+    console.log('websocket closed');
+  }
 
   // Set server-side status to ready / not-ready
   SP.functions.notReady = function() {
@@ -291,29 +309,38 @@ $(function() {
       SP.agent_number = agent_number;
     }
 
-    $.get("/track", { "agent_number":agent_number, "from":SP.username, "status":"Ready" }, function(data) {
+    $.getJSON("/track", { "agent_number":agent_number, "from":SP.username, "status":"Ready" }, function(json) {
+      if(json['message']) return alert(json['message']);
       SP.functions.updateStatus();
     });
   }
 
-
   // Check the status on the server and update the agent status dialog accordingly
   SP.functions.updateStatus = function() {
-    $.get("/status", { "from":SP.username}, function(data) {
-      var result = JSON.parse(data); 
+    $.getJSON("/status", { "from":SP.username}, function(result) {
       console.log("getting status info = " + result);
 
       if (result.status == "NotReady") {
-           SP.functions.updateAgentStatusText("notReady", "Not Ready");
-       }
+        SP.functions.updateAgentStatusText("notReady", "Not Ready");
+      }
 
       if (result.status == "Ready") {
-           SP.functions.updateAgentStatusText("ready", "Ready");
-       }
+        SP.functions.updateAgentStatusText("ready", "Ready");
+      }
 
-      if (result.status == "Inbound" || result.status == "OUtbuond") {
-           SP.functions.updateAgentStatusText("onCall", result.status);
-      } 
+      if (result.status == "Inbound") {
+        var from = result.inbound_number;
+        SP.functions.updateAgentStatusText("onCall", "Call from: " + from);
+      }
+
+      if (result.status == "Outbound") {
+        var from = result.customer_number;
+        SP.functions.updateAgentStatusText("onCall", "Call: " + from);
+      }
+
+      if (result.status == "Missed") {
+        SP.functions.updateAgentStatusText("missed", "Missed");
+      }
 
       //show what the server thinks your number is, as that is what counts
       if (result.phone) {
@@ -335,7 +362,7 @@ $(function() {
 
 
   SP.functions.paint = function(result) {
-    
+
     if (result.agent_number_entry) {
       $("#agent-number-entry input").val(result['agent_number_entry']);
     }
